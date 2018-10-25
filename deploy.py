@@ -6,10 +6,11 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 import azureml.services
-from azureml.core import Workspace, Run
+from azureml.core import Workspace, Experiment, Run
 from azureml.core.authentication import InteractiveLoginAuthentication
 
 ws_name = "MLDeploy"
+exp_name = "sklearn-mnist" 
 sub_key = os.getenv("AZURE_SUBSCRIPTION")
 resource_group = "MLDeploy"
 location = "westus2"
@@ -28,19 +29,41 @@ def create_workspace(name, sub, resource_group, location, createrg):
 
 workspaces = Workspace.list(sub_key, resource_group=resource_group)
 
-global ws
+ws_names = []
 
 if not workspaces:
     # Empty dictionary, no workspaces exist on this subscription
     print("Empty")
 else:
-    for ws in workspaces:
-        print(ws)
-        # check if more than one, if only one take immediately
+    for idx, ws_name in enumerate(workspaces):
+        ws_names.append(ws_name)
 
-# print(workspaces.keys[0])
+if len(ws_names) == 0:
+    # create a workspace
+    print(0)
+elif len(ws_names) == 1:
+    # take only option
+    ws_name = ws_names[0]
+else:
+    print(2)
+    # prompt for selection
 
-# Workspace.get()
+ws = Workspace.get(ws_name, subscription_id=sub_key)
+print(ws.name, ws.location, ws.resource_group, ws.location, sep = '\t')
+
+# Check for existing experiments
+exp_names = ws.experiments()
+
+print(exp_names)
+
+# if not exp_names:
+#     # none exist, create one
+#     exp = Experiment(workspace=ws, name=exp_name)
+# else:
+#     # Some exist, show them
+#     print(ws.experiments)
+
+# print(exp)
 # ws = create_workspace(ws_name, sub_key, resource_group, location, False)
 
 # List all workspaces in the given resource group
