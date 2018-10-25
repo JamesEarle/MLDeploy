@@ -1,36 +1,20 @@
-import os
+import json
 import numpy as np
-import matplotlib
-import matplotlib.pyplot as plt
+import os
+import pickle
+from sklearn.externals import joblib
+from sklearn.linear_model import LogisticRegression
 
-import azureml.services
-from azureml.core import Workspace, Run
-from azureml.core.authentication import InteractiveLoginAuthentication
+from azureml.core.model import Model
 
-ws_name = "MLDeploy"
-sub_key = os.getenv("AZURE_SUBSCRIPTION")
-resource_group = "MLDeploy"
-location = "westus2"
+def init():
+    global model
+    # retreive the path to the model file using the model name
+    model_path = Model.get_model_path('sklearn_mnist')
+    model = joblib.load(model_path)
 
-# ila = new InteractiveLoginAuthentication()
-# spa = ServicePrincipalAuthentication.get_authentication_header(sub_key)
-# print(spa)
-
-# Pass in a preexisting resource_group
-def create_workspace(name, sub, resource_group, location, createrg):
-    return Workspace.create(name=name,
-                      subscription_id=sub,
-                      resource_group=resource_group,
-                      create_resource_group=createrg,
-                      location=location)
-
-workspaces = Workspace.list(sub_key, resource_group=resource_group)
-
-print(workspaces)
-# ws = create_workspace(ws_name, sub_key, resource_group, location, False)
-
-# List all workspaces in the given resource group
-# Opens Edge for auth, only happens once. Access token is stored
-# print(Workspace.list(sub_key, resource_group=resource_group))
-
-# Workspace.get
+def run(raw_data):
+    data = np.array(json.loads(raw_data)['data'])
+    # make prediction
+    y_hat = model.predict(data)
+    return json.dumps(y_hat.tolist())
