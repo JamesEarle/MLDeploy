@@ -9,15 +9,18 @@ import azureml.services
 from azureml.core import Workspace, Experiment, Run
 from azureml.core.authentication import InteractiveLoginAuthentication
 
+from azureml.core.compute import ComputeTarget, BatchAiCompute # BatchAI for example, can use DsvmCompute for neural nets
+from azureml.core.compute_target import ComputeTargetException
+
+# ML resource strings
 ws_name = "MLDeploy"
-exp_name = "sklearn-mnist" 
+exp_name = "keras-mnist" 
 sub_key = os.getenv("AZURE_SUBSCRIPTION")
 resource_group = "MLDeploy"
 location = "westus2"
 
-# ila = new InteractiveLoginAuthentication()
-# spa = ServicePrincipalAuthentication.get_authentication_header(sub_key)
-# print(spa)
+# Compute resource strings, must be 2-16 characters, (a-zA-Z), (0-9), (-)
+cluster_name = "mnist-cluster"
 
 # Pass in a preexisting resource_group or flag to create one by changing createRG to be True
 def create_workspace(name, sub, resource_group, location, createrg):
@@ -48,26 +51,41 @@ else:
     print(2)
     # prompt for selection
 
+# Get workspace and print info
 ws = Workspace.get(ws_name, subscription_id=sub_key)
 print(ws.name, ws.location, ws.resource_group, ws.location, sep = '\t')
 
-# Check for existing experiments
-exp_names = ws.experiments()
+# Create experiment
+exp = Experiment(workspace=ws, name=exp_name)
+print(exp)
 
-print(exp_names)
+global compute_target
 
-# if not exp_names:
-#     # none exist, create one
-#     exp = Experiment(workspace=ws, name=exp_name)
-# else:
-#     # Some exist, show them
-#     print(ws.experiments)
+# Search for or create compute resources
+try:
+    # should be = ComputeTarget? or = BatchAiCompute? Lint error on ComputeTarget
+    # _get?
+    compute_target = ComputeTarget(ws, name=cluster_name)
 
-# print(exp)
-# ws = create_workspace(ws_name, sub_key, resource_group, location, False)
+    if(type(compute_target) is BatchAiCompute):
+        # found what we want, just use it
+        print("Resource {} found.".format(cluster_name))
+    else:
+        # name already exists on another resource
+        print("Resource '{0}' already exists is of type {1}.".format(cluster_name, type(compute_target)))
+        # print("A resource with name {} already exists, try another name.".format(cluster_name))
+except ComputeTargetException:
+    # create new resource because it wasn't found
+    print("Resource not found. Creating resource {}...".format(cluster_name))
 
-# List all workspaces in the given resource group
-# Opens Edge for auth, only happens once. Access token is stored
-# print(Workspace.list(sub_key, resource_group=resource_group))
+    # Can customize these parameters based on compute requirements.
+    # aka.ms/azureml-batchai-details for more info
+    compute_config = BatchAiCompute.provisioning_configuration(vm_size="STANDARD_D2_V2",autoscale_enabled=True, cluster_min_nodes=0, cluster_max_nodes=4)
 
-# Workspace.get
+    # Create the cluster
+    compute_target = ComputeTarget.create(ws, cluster_name, compute_config)
+    compute_target.wait_for_completion(show_output=True)
+    print(compute_target.get_status())
+
+
+print(compute_target.get_status())
