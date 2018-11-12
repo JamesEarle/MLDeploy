@@ -14,7 +14,7 @@ from azureml.core.compute_target import ComputeTargetException
 
 # ML resource strings
 ws_name = "MLDeploy"
-exp_name = "keras-mnist" 
+exp_name = dir_name = "keras-mnist" 
 sub_key = os.getenv("AZURE_SUBSCRIPTION")
 resource_group = "MLDeploy"
 location = "westus2"
@@ -87,5 +87,7 @@ except ComputeTargetException:
     compute_target.wait_for_completion(show_output=True)
     print(compute_target.get_status())
 
-
 print(compute_target.get_status())
+
+# Create directory to prepare for upload to Azure
+os.makedirs(dir_name, exist_ok=True)
