@@ -13,7 +13,7 @@ from azureml.core.compute import ComputeTarget, BatchAiCompute # BatchAI for exa
 from azureml.core.compute_target import ComputeTargetException
 
 # ML resource strings
-ws_name = "MLDeploy"
+ws_name = "mldeployworkspace"
 exp_name = dir_name = "keras-mnist" 
 sub_key = os.getenv("AZURE_SUBSCRIPTION")
 resource_group = "MLDeploy"
@@ -40,7 +40,6 @@ if not workspaces:
 else:
     for idx, ws_name in enumerate(workspaces):
         ws_names.append(ws_name)
-
 if len(ws_names) == 0:
     # create a workspace
     print(0)
@@ -90,4 +89,4 @@ except ComputeTargetException:
 print(compute_target.get_status())
 
 # Create directory to prepare for upload to Azure
-os.makedirs(dir_name, exist_ok=True)
+os.makedirs("outputs", exist_ok=True)

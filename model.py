@@ -7,8 +7,8 @@ from keras.utils import to_categorical
 # Use to grab a previously saved model (.h5 file)
 from keras.models import load_model
 
-def save_model(name, model):
-    model.save(name + ".h5")
+def save_model(path, name, model):
+    model.save(path + name + ".h5")
 
 (X_train, y_train), (X_test, y_test) = mnist.load_data()
 
@@ -35,7 +35,7 @@ y_test = to_categorical(y_test)
 model.fit(X_train, y_train, epochs=5, batch_size=128)
 
 # Save locally
-save_model("keras-mnist", model)
+save_model("./outputs/", "keras-mnist", model)
 
 # Evaluate model
 model.evaluate(X_test, y_test)
