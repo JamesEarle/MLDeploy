@@ -66,7 +66,20 @@ model.save("./outputs/keras-mnist-model.h5")
 # Log data to Azure experiment
 run.log_list("loss", hist.history["loss"])
 run.log_list("accuracy", hist.history["acc"])
+
+# Create an estimator here and submit web job to batch AI cluster before registering model?
+# or only if we want to train on the compute target?
+
+acc = model.evaluate(X_test, y_test)
+acc = str(acc[1])[2:] # index to accuracy, slice out "0." and only use RHS of float, "9815"
+
+# Register your model in Azure
+model = run.register_model(model_name="keras-mnist-" + acc, model_path="outputs/keras-mnist-model.h5")
+print(model.name, model.id, model.version, sep = '\t')
+
+# Complete the run
 run.complete()
+
 
 # Print URL to show this experiment run in Azure portal.
 print(run.get_portal_url())
