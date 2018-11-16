@@ -59,10 +59,6 @@ model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=["ac
 # Access history of loss and accuracy across all epochs
 hist = model.fit(X_train, y_train, epochs=5, batch_size=128)
 
-# Save model locally
-os.makedirs('outputs', exist_ok=True)
-model.save("./outputs/keras-mnist-model.h5")
-
 # Log data to Azure experiment
 run.log_list("loss", hist.history["loss"])
 run.log_list("accuracy", hist.history["acc"])
@@ -73,13 +69,15 @@ run.log_list("accuracy", hist.history["acc"])
 acc = model.evaluate(X_test, y_test)
 acc = str(acc[1])[2:] # index to accuracy, slice out "0." and only use RHS of float, "9815"
 
+model_name = "keras-mnist-{}".format(acc)
+model_path = ""
+
 # Register your model in Azure
 model = run.register_model(model_name="keras-mnist-" + acc, model_path="outputs/keras-mnist-model.h5")
 print(model.name, model.id, model.version, sep = '\t')
 
 # Complete the run
 run.complete()
-
 
 # Print URL to show this experiment run in Azure portal.
 print(run.get_portal_url())
