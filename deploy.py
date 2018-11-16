@@ -23,7 +23,17 @@ parser.add_argument("--workspace-name", "-ws", type=str, dest="ws_name", help="A
 parser.add_argument("--experiment-name", "-ex", type=str, dest="exp_name", help="Workspace experiment to use. Will create an experiment if not found.")
 parser.add_argument("--resource-group", "-rg", type=str, dest="rg", help="Resource group to use or create.")
 parser.add_argument("--location", "-l", type=str, dest="location", help="Region for your resources to be deployed to.")
-
+parser.add_argument("--compute-target", "-ct", type=str, dest="compute_target", 
+                    help="Compute target to use or create. Options are: \
+                        AdlaCompute, \
+                        AksCompute, \
+                        BatchAiCompute, \
+                        ComputeTarget, \
+                        DatabricksCompute, \
+                        DataFactoryCompute, \
+                        DsvmCompute, \
+                        HDInsightCompute, \
+                        RemoteCompute")
 args = parser.parse_args()
 
 err = False
@@ -56,8 +66,12 @@ run = exp.start_logging()
 # Import your model. Ensure all required frameworks/packages are installed.
 import model
 
+# Instead of training and saving here, create the desired compute target 
+# then create an estimator and submit the job to that compute target.
+# https://docs.microsoft.com/en-us/azure/machine-learning/service/tutorial-train-models-with-aml#create-an-estimator
+
 # Add your own "run.log()" or "run.log_list()" calls in your model here.
-model_name, model_path = model.train_and_save(run)
+model_name, model_path = model.train_and_save(run) # local train
 
 model = run.register_model(model_name=model_name, model_path=model_path)
 print(model.name, model.id, model.version, sep = '\t')
