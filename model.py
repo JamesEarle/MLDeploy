@@ -15,6 +15,7 @@ def train_and_save(run):
     (X_train, y_train), (X_test, y_test) = mnist.load_data()
 
     # Simple dense model
+
     model = models.Sequential()
     model.add(layers.Dense(512, activation='relu', input_shape=(28*28,)))
     model.add(layers.Dense(10, activation='softmax'))

@@ -15,6 +15,15 @@ from azureml.core.compute import ComputeTarget, BatchAiCompute
 from azureml.core.compute_target import ComputeTargetException
 
 sub_key = os.getenv("AZURE_SUBSCRIPTION")
+compute_options = ["AdlaCompute", 
+                   "AksCompute", 
+                   "BatchAiCompute",
+                   "ComputeTarget",
+                   "DatabricksCompute",
+                   "DataFactoryCompute",
+                   "DsvmCompute",
+                   "HDInsightCompute",
+                   "RemoteCompute"]
 
 parser = argparse.ArgumentParser()
 
@@ -23,7 +32,7 @@ parser.add_argument("--workspace-name", "-ws", type=str, dest="ws_name", help="A
 parser.add_argument("--experiment-name", "-ex", type=str, dest="exp_name", help="Workspace experiment to use. Will create an experiment if not found.")
 parser.add_argument("--resource-group", "-rg", type=str, dest="rg", help="Resource group to use or create.")
 parser.add_argument("--location", "-l", type=str, dest="location", help="Region for your resources to be deployed to.")
-parser.add_argument("--compute-target", "-ct", type=str, dest="compute_target", 
+parser.add_argument("--compute-target", "-ct", type=str, dest="compute_target", default=None,
                     help="Compute target to use or create. Options are: \
                         AdlaCompute, \
                         AksCompute, \
@@ -36,19 +45,40 @@ parser.add_argument("--compute-target", "-ct", type=str, dest="compute_target",
                         RemoteCompute")
 args = parser.parse_args()
 
+# Keep proper casing for compute option, regardless of what is entered (case insensitive arg)
+compute_option = None
 err = False
+
+# Validate CLI args
 for attr, value in args.__dict__.items():
-    if(value == None):
+    if(attr == "compute_target" and value != None):
+        for co in compute_options: 
+            if value.lower() == co.lower():
+                compute_option = co
+        # Not a valid selection
+        if(compute_option == None):
+            # Invalid compute selection, show list of available options
+            print("Invalid compute target chosen. Please select one from the following list.\n{}".format(compute_options))
+
+    if(value == None and attr != "compute_target"): # compute_target is optional arg
         # Want it to print all missing args, so call sys.exit after the loop
-        print("Missing required parameter: {}".format(attr))
+        print("Missing required argument: {}".format(attr))
         err = True
 if err:
     sys.exit()
 
+if(args.compute_target == None):
+    print("Preparing for local training...")
+else:
+    # See if we can make this print nicely, instead of just what the user puts in
+    print("Preparing for remote training, creating {} resource...".format(compute_option))
+
+ 
 # Start by getting or creating the Azure workspace.
 try:
-    print("Using workspace {}".format(args.ws_name))
     ws = Workspace.get(args.ws_name, subscription_id=sub_key)
+    if(ws != None):
+        print("Using workspace {}".format(args.ws_name))
 except:
     print("Workspace not found, creating workspace {}".format(args.ws_name))
     ws = Workspace.create(name=args.ws_name,
@@ -57,30 +87,54 @@ except:
                           create_resource_group=True, # Change to false if you want to use a pre-existing resource group.
                           location=args.location)
 
-# Get the experiment or start a new one
-exp = Experiment(workspace=ws, name=args.exp_name)
+if(compute_option == None): # does this use case really matter? Still need to create image and deploy
+    # Train locally
+    # Get the experiment or start a new one
+    exp = Experiment(workspace=ws, name=args.exp_name)
 
-# Run model once, log results, and register in Azure.
-run = exp.start_logging()
+    # Run model once, log results, and register in Azure.
+    run = exp.start_logging()
 
-# Import your model. Ensure all required frameworks/packages are installed.
-import model
+    # Import your model. Ensure all required frameworks/packages are installed.
+    import model
+
+    # Add your own "run.log()" or "run.log_list()" calls in "model.train_and_save()"
+    model_name, model_path = model.train_and_save(run) # local train
+
+    # Register model on Azure
+    model = run.register_model(model_name=model_name, model_path=model_path)
+    print(model.name, model.id, model.version, sep = '\t')
+
+    # Complete the run
+    run.complete()
+
+    # Print URL to show this experiment run in Azure portal.
+    print(run.get_portal_url())
+else:
+    # Train remotely, get/create compute target
+    print("remote")
+
+
+
+
+
+
+# delete v
+sys.exit()
+# delete ^
+
+
+
+
+
+
+
 
 # Instead of training and saving here, create the desired compute target 
 # then create an estimator and submit the job to that compute target.
 # https://docs.microsoft.com/en-us/azure/machine-learning/service/tutorial-train-models-with-aml#create-an-estimator
 
-# Add your own "run.log()" or "run.log_list()" calls in your model here.
-model_name, model_path = model.train_and_save(run) # local train
 
-model = run.register_model(model_name=model_name, model_path=model_path)
-print(model.name, model.id, model.version, sep = '\t')
-
-# Complete the run
-run.complete()
-
-# Print URL to show this experiment run in Azure portal.
-print(run.get_portal_url())
 
 # global compute_target
 
@@ -114,3 +168,5 @@ print(run.get_portal_url())
 
 # cluster_name = "{}-cluster".format(args.exp_name)
 # print("other stuff")
+
+
