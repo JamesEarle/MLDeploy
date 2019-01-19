@@ -7,7 +7,10 @@ import sys
 import argparse
 
 import azureml.services
-from azureml.core import Workspace, Experiment, Run
+from azureml.core import Workspace
+from azureml.core.image import ContainerImage
+from azureml.core.webservice import Webservice
+from azureml.core.webservice import AciWebservice
 from azureml.core.authentication import InteractiveLoginAuthentication
 
 # BatchAI for example, can use DsvmCompute for neural nets
@@ -27,9 +30,13 @@ compute_options = ["AdlaCompute",
 
 parser = argparse.ArgumentParser()
 
+
+# Too many params, should just make it interactive menu
 # Required CLI arguments to deploy
+parser.add_argument("--model", "-m", type=str, dest="model", help="Model file name.")
+parser.add_argument("--score-script", "-s", type=str, dest="score", help="Path tp your score.py file.")
+parser.add_argument("--env", "-e", type=str, dest="env", help="Path to your trained environment YAML file.")
 parser.add_argument("--workspace-name", "-ws", type=str, dest="ws_name", help="Azure workspace to deploy to. Will create a workspace if not found.")
-parser.add_argument("--experiment-name", "-ex", type=str, dest="exp_name", help="Workspace experiment to use. Will create an experiment if not found.")
 parser.add_argument("--resource-group", "-rg", type=str, dest="rg", help="Resource group to use or create.")
 parser.add_argument("--location", "-l", type=str, dest="location", help="Region for your resources to be deployed to.")
 parser.add_argument("--compute-target", "-ct", type=str, dest="compute_target", default=None,
@@ -47,9 +54,8 @@ args = parser.parse_args()
 
 # Keep proper casing for compute option, regardless of what is entered (case insensitive arg)
 compute_option = None
-err = False
 
-# Validate CLI args
+# Validate args
 for attr, value in args.__dict__.items():
     if(attr == "compute_target" and value != None):
         for co in compute_options: 
@@ -59,21 +65,17 @@ for attr, value in args.__dict__.items():
         if(compute_option == None):
             # Invalid compute selection, show list of available options
             print("Invalid compute target chosen. Please select one from the following list.\n{}".format(compute_options))
-
+            sys.exit()
     if(value == None and attr != "compute_target"): # compute_target is optional arg
         # Want it to print all missing args, so call sys.exit after the loop
         print("Missing required argument: {}".format(attr))
-        err = True
-if err:
-    sys.exit()
+        sys.exit()
 
-if(args.compute_target == None):
-    print("Preparing for local training...")
-else:
-    # See if we can make this print nicely, instead of just what the user puts in
-    print("Preparing for remote training, creating {} resource...".format(compute_option))
+# Validate local file paths given
+for f in [args.score, args.env]:
+    if not os.path.isfile(f):
+        print("Cannot find file {}".format(f))
 
- 
 # Start by getting or creating the Azure workspace.
 try:
     ws = Workspace.get(args.ws_name, subscription_id=sub_key)
@@ -85,43 +87,34 @@ except:
                           subscription_id=sub_key,
                           resource_group=args.rg,
                           create_resource_group=True, # Change to false if you want to use a pre-existing resource group.
-                          location=args.location)
+                          location=args.location)                   
 
-if(compute_option == None): # does this use case really matter? Still need to create image and deploy
-    # Train locally
-    # Get the experiment or start a new one
-    exp = Experiment(workspace=ws, name=args.exp_name)
+image_config = ContainerImage.image_configuration(execution_script = args.score,
+                                                  runtime = "python",
+                                                  conda_file = args.env,
+                                                  description = "Image for Keras CNN gear classification",
+                                                  tags = {"data": "gear", "type": "classification"})
 
-    # Run model once, log results, and register in Azure.
-    run = exp.start_logging()
+aci_config = AciWebservice.deploy_configuration(cpu_cores = 1, 
+                                               memory_gb = 1, 
+                                               tags = {"data": "gear", "type": "classification"},
+                                               description = 'Gear classification')                       
 
-    # Import your model. Ensure all required frameworks/packages are installed.
-    import model
+# need to better strip characters from file names.
+service_name = args.model.split(".")[0] + "-svc"
+service = Webservice.deploy(deployment_config = aci_config,
+                                image_config = image_config,
+                                model_paths = [args.model],
+                                name = service_name,
+                                workspace = ws)
 
-    # Add your own "run.log()" or "run.log_list()" calls in "model.train_and_save()"
-    model_name, model_path = model.train_and_save(run) # local train
+service.wait_for_deployment(show_output = True)
 
-    # Register model on Azure
-    model = run.register_model(model_name=model_name, model_path=model_path)
-    print(model.name, model.id, model.version, sep = '\t')
+print(service.state)
 
-    # Complete the run
-    run.complete()
-
-    # Print URL to show this experiment run in Azure portal.
-    print(run.get_portal_url())
-else:
-    # Train remotely, get/create compute target
-    print("remote")
+print(service.scoring_uri)
 
 
-
-
-
-
-# delete v
-sys.exit()
-# delete ^
 
 
 
