@@ -63,7 +63,7 @@ model_name = params["model_file_path"].split("\\")[-1].split(".")[0]
 
 # Start by getting or creating the Azure workspace.
 try:
-    ws = Workspace.get(params["ws_name"], subscription_id=sub_key)
+    ws = Workspace.get(params["ws_name"], subscription_id=os.getenv("AZURE_SUBSCRIPTION"))
     if(ws != None):
         print("Using workspace {}".format(params["ws_name"]))
 except:
