@@ -104,3 +104,6 @@ venv.bak/
 .mypy_cache/
 
 .vscode
+
+# Don't track data files used in samples.
+*.gz
