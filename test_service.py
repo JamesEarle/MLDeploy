@@ -7,6 +7,7 @@ from keras.datasets import mnist
 
 (X_train, y_train), (X_test, y_test) = mnist.load_data()
 
+# Printed when deploy.py finishes
 # http://<your-service-ip>:80/score
 uri = "http://104.45.178.103:80/score"
 
@@ -22,3 +23,7 @@ input_json = json.dumps({"data": np.asarray(img).tolist() })
 res = requests.post(uri, input_json, headers={ "Content-Type": "application/json" })
 
 print(res.text)
+
+# Example output
+# Actual label:  8
+# "[[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0]]"
