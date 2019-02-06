@@ -106,13 +106,13 @@ if params["service"] == "ACI":
                                         workspace = ws)    
 else:
     from azureml.core.webservice import AksWebservice
-    from azureml.core.compute import AksCompute
+    from azureml.core.compute import AksCompute, ComputeTarget
 
-    aks_name = "myaks"
+    aks_name = "aml-aks-2323"
 
     try:
         # Look for existing AksCompute target
-        aks_compute = AksCompute(ws, aks_name)
+        aks_target = AksCompute(ws, aks_name)
     except:
 
 
@@ -129,22 +129,25 @@ else:
         # Standard_B4ms,Standard_B8ms
         
         # Creating new AksCompute target
-        aks_config = AksCompute.provisioning_configuration(agent_count = 12, vm_size="Standard_DS12_v2")
-        aks_compute = AksCompute.create(ws, name = aks_name, provisioning_configuration = aks_config)
-        aks_compute.wait_for_completion(show_output=True)
+        prov_config = AksCompute.provisioning_configuration(agent_count = 3, vm_size="Standard_DS12_v2")
+        # prov_config = AksCompute.provisioning_configuration()
 
-    service_config = AksWebservice.deploy_configuration(cpu_cores = 12, memory_gb = 8)
+        aks_target = ComputeTarget.create(ws, name = aks_name, provisioning_configuration = prov_config)
+        aks_target.wait_for_completion(show_output=True)
+        print(aks_target.provisioning_state)
+        print(aks_target.provisioning_errors)
+
+    service_config = AksWebservice.deploy_configuration(cpu_cores = 1, memory_gb = 1)
+    # service_config = AksWebservice.deploy_configuration()
 
     service_name = model_name + "-svc"
     service = Webservice.deploy(deployment_config = service_config,
-                                        deployment_target=aks_compute,
+                                        deployment_target=aks_target,
                                         image_config = image_config,
                                         model_paths = [params["model_file_path"]],
                                         name = service_name,
                                         workspace = ws)
 
-service.wait_for_deployment(show_output = True)
-
-print(service.state)
-
-print(service.scoring_uri)
+    service.wait_for_deployment(show_output = True)
+    print(service.state)
+    print(service.scoring_uri)
